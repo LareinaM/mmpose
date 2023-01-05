@@ -1005,6 +1005,12 @@ class GenerateTarget(BaseTransform):
             else:
                 encoded['keypoint_weights'] *= results[
                     'dataset_keypoint_weights']
+        """
+        # add max_num_joints
+        if :
+            W, H = self.encoder
+            encoded['heatmaps'] = 
+        """
 
         results.update(encoded)
 

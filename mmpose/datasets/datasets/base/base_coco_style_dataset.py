@@ -74,7 +74,9 @@ class BaseCocoStyleDataset(BaseDataset):
                  pipeline: List[Union[dict, Callable]] = [],
                  test_mode: bool = False,
                  lazy_init: bool = False,
-                 max_refetch: int = 1000):
+                 max_refetch: int = 1000,
+                 dataset_idx: int = 0
+    ):
 
         if data_mode not in {'topdown', 'bottomup'}:
             raise ValueError(
