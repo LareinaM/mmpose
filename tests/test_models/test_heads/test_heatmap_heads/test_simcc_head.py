@@ -22,20 +22,6 @@ class TestSimCCHead(TestCase):
         ]
         return feats
 
-    def _get_data_samples(self,
-                          batch_size: int = 2,
-                          simcc_split_ratio: float = 2.0,
-                          with_simcc_label=False):
-
-        batch_data_samples = [
-            inputs['data_sample'] for inputs in get_packed_inputs(
-                batch_size,
-                simcc_split_ratio=simcc_split_ratio,
-                with_simcc_label=with_simcc_label)
-        ]
-
-        return batch_data_samples
-
     def test_init(self):
 
         # w/ gaussian decoder
@@ -43,7 +29,8 @@ class TestSimCCHead(TestCase):
             in_channels=32,
             out_channels=17,
             input_size=(192, 256),
-            in_featuremap_size=(8, 6),
+            in_featuremap_size=(6, 8),
+            simcc_split_ratio=2.0,
             decoder=dict(
                 type='SimCCLabel',
                 input_size=(192, 256),
@@ -57,7 +44,8 @@ class TestSimCCHead(TestCase):
             in_channels=32,
             out_channels=17,
             input_size=(192, 256),
-            in_featuremap_size=(8, 6),
+            in_featuremap_size=(6, 8),
+            simcc_split_ratio=3.0,
             decoder=dict(
                 type='SimCCLabel',
                 input_size=(192, 256),
@@ -72,7 +60,8 @@ class TestSimCCHead(TestCase):
             in_channels=32,
             out_channels=17,
             input_size=(192, 256),
-            in_featuremap_size=(8, 6),
+            in_featuremap_size=(6, 8),
+            simcc_split_ratio=3.0,
             decoder=dict(
                 type='SimCCLabel',
                 input_size=(192, 256),
@@ -105,44 +94,19 @@ class TestSimCCHead(TestCase):
             label_smooth_weight=0.1)
 
         for decoder_cfg in [decoder_cfg1, decoder_cfg2, decoder_cfg3]:
-            # input transform: select
+
             head = SimCCHead(
-                in_channels=[16, 32],
+                in_channels=32,
                 out_channels=17,
                 input_size=(192, 256),
-                in_featuremap_size=(8, 6),
-                input_transform='select',
-                input_index=-1,
+                in_featuremap_size=(6, 8),
+                simcc_split_ratio=decoder_cfg['simcc_split_ratio'],
                 decoder=decoder_cfg)
-            feats = self._get_feats(
-                batch_size=2, feat_shapes=[(16, 16, 12), (32, 8, 6)])
-            batch_data_samples = self._get_data_samples(
-                batch_size=2, simcc_split_ratio=2.0, with_simcc_label=True)
-            preds = head.predict(feats, batch_data_samples)
-
-            self.assertTrue(len(preds), 2)
-            self.assertIsInstance(preds[0], InstanceData)
-            self.assertEqual(
-                preds[0].keypoints.shape,
-                batch_data_samples[0].gt_instances.keypoints.shape)
-
-            # input transform: resize and concat
-            head = SimCCHead(
-                in_channels=[16, 32],
-                out_channels=17,
-                input_size=(192, 256),
-                in_featuremap_size=(16, 12),
-                input_transform='resize_concat',
-                input_index=[0, 1],
-                deconv_out_channels=(256, 256),
-                deconv_kernel_sizes=(4, 4),
-                conv_out_channels=(256, ),
-                conv_kernel_sizes=(1, ),
-                decoder=decoder_cfg)
-            feats = self._get_feats(
-                batch_size=2, feat_shapes=[(16, 16, 12), (32, 8, 6)])
-            batch_data_samples = self._get_data_samples(
-                batch_size=2, simcc_split_ratio=2.0, with_simcc_label=True)
+            feats = self._get_feats(batch_size=2, feat_shapes=[(32, 8, 6)])
+            batch_data_samples = get_packed_inputs(
+                batch_size=2,
+                simcc_split_ratio=decoder_cfg['simcc_split_ratio'],
+                with_simcc_label=True)['data_samples']
             preds = head.predict(feats, batch_data_samples)
 
             self.assertTrue(len(preds), 2)
@@ -153,24 +117,26 @@ class TestSimCCHead(TestCase):
 
             # input transform: output heatmap
             head = SimCCHead(
-                in_channels=[16, 32],
+                in_channels=32,
                 out_channels=17,
                 input_size=(192, 256),
-                in_featuremap_size=(8, 6),
-                input_transform='select',
-                input_index=-1,
+                in_featuremap_size=(6, 8),
+                simcc_split_ratio=decoder_cfg['simcc_split_ratio'],
                 decoder=decoder_cfg)
-            feats = self._get_feats(
-                batch_size=2, feat_shapes=[(16, 16, 12), (32, 8, 6)])
-            batch_data_samples = self._get_data_samples(
-                batch_size=2, simcc_split_ratio=2.0, with_simcc_label=True)
-            preds = head.predict(
+            feats = self._get_feats(batch_size=2, feat_shapes=[(32, 8, 6)])
+            batch_data_samples = get_packed_inputs(
+                batch_size=2,
+                simcc_split_ratio=decoder_cfg['simcc_split_ratio'],
+                with_simcc_label=True)['data_samples']
+            preds, pred_heatmaps = head.predict(
                 feats, batch_data_samples, test_cfg=dict(output_heatmaps=True))
 
             self.assertEqual(preds[0].keypoint_x_labels.shape,
                              (1, 17, 192 * 2))
             self.assertEqual(preds[0].keypoint_y_labels.shape,
                              (1, 17, 256 * 2))
+            self.assertTrue(len(pred_heatmaps), 2)
+            self.assertEqual(pred_heatmaps[0].heatmaps.shape, (17, 512, 384))
 
     def test_tta(self):
         # flip test
@@ -182,17 +148,16 @@ class TestSimCCHead(TestCase):
             simcc_split_ratio=2.0)
 
         head = SimCCHead(
-            in_channels=[16, 32],
+            in_channels=32,
             out_channels=17,
             input_size=(192, 256),
-            in_featuremap_size=(8, 6),
-            input_transform='select',
-            input_index=-1,
+            in_featuremap_size=(6, 8),
+            simcc_split_ratio=2.0,
             decoder=decoder_cfg)
-        feats = self._get_feats(
-            batch_size=2, feat_shapes=[(16, 16, 12), (32, 8, 6)])
-        batch_data_samples = self._get_data_samples(
-            batch_size=2, simcc_split_ratio=2.0, with_simcc_label=True)
+        feats = self._get_feats(batch_size=2, feat_shapes=[(32, 8, 6)])
+        batch_data_samples = get_packed_inputs(
+            batch_size=2, simcc_split_ratio=2.0,
+            with_simcc_label=True)['data_samples']
         preds = head.predict([feats, feats],
                              batch_data_samples,
                              test_cfg=dict(flip_test=True))
@@ -228,18 +193,17 @@ class TestSimCCHead(TestCase):
         # decoder
         for decoder_cfg in [decoder_cfg1, decoder_cfg2, decoder_cfg3]:
             head = SimCCHead(
-                in_channels=[16, 32],
+                in_channels=32,
                 out_channels=17,
                 input_size=(192, 256),
-                in_featuremap_size=(8, 6),
-                input_transform='select',
-                input_index=-1,
+                in_featuremap_size=(6, 8),
+                simcc_split_ratio=2.0,
                 decoder=decoder_cfg)
 
-            feats = self._get_feats(
-                batch_size=2, feat_shapes=[(16, 16, 12), (32, 8, 6)])
-            batch_data_samples = self._get_data_samples(
-                batch_size=2, simcc_split_ratio=2.0, with_simcc_label=True)
+            feats = self._get_feats(batch_size=2, feat_shapes=[(32, 8, 6)])
+            batch_data_samples = get_packed_inputs(
+                batch_size=2, simcc_split_ratio=2.0,
+                with_simcc_label=True)['data_samples']
             losses = head.loss(feats, batch_data_samples)
             self.assertIsInstance(losses['loss_kpt'], torch.Tensor)
             self.assertEqual(losses['loss_kpt'].shape, torch.Size(()))
@@ -247,18 +211,18 @@ class TestSimCCHead(TestCase):
 
     def test_errors(self):
         # Invalid arguments
-        with self.assertRaisesRegex(ValueError, 'Got unmatched values'):
+        with self.assertRaisesRegex(ValueError, 'Got mismatched lengths'):
             _ = SimCCHead(
-                in_channels=[16, 32],
+                in_channels=32,
                 out_channels=17,
                 input_size=(192, 256),
                 in_featuremap_size=(48, 64),
                 deconv_out_channels=(256, ),
                 deconv_kernel_sizes=(4, 4))
 
-        with self.assertRaisesRegex(ValueError, 'Got unmatched values'):
+        with self.assertRaisesRegex(ValueError, 'Got mismatched lengths'):
             _ = SimCCHead(
-                in_channels=[16, 32],
+                in_channels=32,
                 out_channels=17,
                 input_size=(192, 256),
                 in_featuremap_size=(48, 64),
@@ -273,18 +237,6 @@ class TestSimCCHead(TestCase):
                 in_featuremap_size=(48, 64),
                 deconv_out_channels=(256, ),
                 deconv_kernel_sizes=(1, ))
-
-        with self.assertRaisesRegex(ValueError,
-                                    'selecting multiple input features'):
-            _ = SimCCHead(
-                in_channels=[16, 32],
-                out_channels=17,
-                input_size=(192, 256),
-                in_featuremap_size=(48, 64),
-                input_transform='select',
-                input_index=[0, 1],
-                deconv_out_channels=(256, ),
-                deconv_kernel_sizes=(4, ))
 
 
 if __name__ == '__main__':

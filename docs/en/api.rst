@@ -3,13 +3,10 @@ mmpose.apis
 .. automodule:: mmpose.apis
     :members:
 
-
 mmpose.codecs
 -------------
-
 .. automodule:: mmpose.codecs
     :members:
-
 
 mmpose.models
 ---------------
@@ -25,7 +22,7 @@ necks
 
 detectors
 ^^^^^^^^^^^
-.. automodule:: mmpose.models.detectors
+.. automodule:: mmpose.models.pose_estimators
     :members:
 
 heads
@@ -40,7 +37,7 @@ losses
 
 misc
 ^^^^^^^^^^^
-.. automodule:: mmpose.models.misc
+.. automodule:: mmpose.models.utils
     :members:
 
 mmpose.datasets
@@ -113,16 +110,27 @@ mmpose.registry
     :members:
 
 mmpose.evaluation
----------------
-.. automodule:: mmpose.evaluation
+-----------------
+metrics
+^^^^^^^^^^^
+.. automodule:: mmpose.evaluation.metrics
+    :members:
+
+functional
+^^^^^^^^^^^
+.. automodule:: mmpose.evaluation.functional
     :members:
 
 mmpose.visualization
----------------
+--------------------
 .. automodule:: mmpose.visualization
     :members:
 
 mmpose.engine
 ---------------
-.. automodule:: mmpose.engine
+hooks
+^^^^^^^^^^^
+.. automodule:: mmpose.engine.hooks
     :members:
+
+.. include:: webcam_api.rst

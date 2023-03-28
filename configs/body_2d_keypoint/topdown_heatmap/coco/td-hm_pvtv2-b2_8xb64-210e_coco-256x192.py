@@ -51,11 +51,11 @@ model = dict(
             checkpoint='https://github.com/whai362/PVT/'
             'releases/download/v2/pvt_v2_b2.pth'),
     ),
+    neck=dict(type='FeatureMapProcessor', select_index=3),
     head=dict(
         type='HeatmapHead',
-        in_channels=(64, 128, 320, 512),
+        in_channels=512,
         out_channels=17,
-        input_index=3,
         loss=dict(type='KeypointMSELoss', use_target_weight=True),
         decoder=codec),
     test_cfg=dict(
@@ -71,7 +71,7 @@ data_root = 'data/coco/'
 
 # pipelines
 train_pipeline = [
-    dict(type='LoadImage', file_client_args={{_base_.file_client_args}}),
+    dict(type='LoadImage'),
     dict(type='GetBBoxCenterScale'),
     dict(type='RandomFlip', direction='horizontal'),
     dict(type='RandomHalfBody'),
@@ -82,7 +82,7 @@ train_pipeline = [
 ]
 
 val_pipeline = [
-    dict(type='LoadImage', file_client_args={{_base_.file_client_args}}),
+    dict(type='LoadImage'),
     dict(type='GetBBoxCenterScale'),
     dict(type='TopdownAffine', input_size=codec['input_size']),
     dict(type='PackPoseInputs')

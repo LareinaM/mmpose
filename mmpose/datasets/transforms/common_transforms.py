@@ -10,6 +10,7 @@ from mmcv.image import imflip
 from mmcv.transforms import BaseTransform
 from mmcv.transforms.utils import avoid_cache_randomness, cache_randomness
 from mmengine import is_list_of
+from mmengine.dist import get_dist_info
 from scipy.stats import truncnorm
 
 from mmpose.codecs import *  # noqa: F401, F403
@@ -96,6 +97,7 @@ class RandomFlip(BaseTransform):
         - img
         - img_shape
         - flip_indices
+        - input_size (optional)
         - bbox (optional)
         - bbox_center (optional)
         - keypoints (optional)
@@ -201,7 +203,7 @@ class RandomFlip(BaseTransform):
             results['flip'] = True
             results['flip_direction'] = flip_dir
 
-            h, w = results['img_shape']
+            h, w = results.get('input_size', results['img_shape'])
             # flip image and mask
             if isinstance(results['img'], list):
                 results['img'] = [
@@ -638,7 +640,9 @@ class Albumentation(BaseTransform):
         if mmengine.is_str(obj_type):
             if albumentations is None:
                 raise RuntimeError('albumentations is not installed')
-            if not hasattr(albumentations.augmentations.transforms, obj_type):
+            rank, _ = get_dist_info()
+            if rank == 0 and not hasattr(
+                    albumentations.augmentations.transforms, obj_type):
                 warnings.warn(
                     f'{obj_type} is not pixel-level transformations. '
                     'Please use with caution.')
@@ -948,15 +952,27 @@ class GenerateTarget(BaseTransform):
         if not isinstance(self.encoder, list):
             # For single encoding, the encoded items will be directly added
             # into results.
+            auxiliary_encode_kwargs = {
+                key: results[key]
+                for key in self.encoder.auxiliary_encode_keys
+            }
             encoded = self.encoder.encode(
-                keypoints=keypoints, keypoints_visible=keypoints_visible)
+                keypoints=keypoints,
+                keypoints_visible=keypoints_visible,
+                **auxiliary_encode_kwargs)
 
         else:
-            encoded_list = [
-                _encoder.encode(
-                    keypoints=keypoints, keypoints_visible=keypoints_visible)
-                for _encoder in self.encoder
-            ]
+            encoded_list = []
+            for _encoder in self.encoder:
+                auxiliary_encode_kwargs = {
+                    key: results[key]
+                    for key in _encoder.auxiliary_encode_keys
+                }
+                encoded_list.append(
+                    _encoder.encode(
+                        keypoints=keypoints,
+                        keypoints_visible=keypoints_visible,
+                        **auxiliary_encode_kwargs))
 
             if self.multilevel:
                 # For multilevel encoding, the encoded items from each encoder
@@ -1018,7 +1034,6 @@ class GenerateTarget(BaseTransform):
         """
         repr_str = self.__class__.__name__
         repr_str += (f'(encoder={str(self.encoder_cfg)}, ')
-        repr_str += (f'(target_type={str(self.target_type)}, ')
         repr_str += ('use_dataset_keypoint_weights='
                      f'{self.use_dataset_keypoint_weights})')
         return repr_str

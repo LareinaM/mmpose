@@ -5,7 +5,7 @@ default_hooks = dict(
     timer=dict(type='IterTimerHook'),
     logger=dict(type='LoggerHook', interval=50),
     param_scheduler=dict(type='ParamSchedulerHook'),
-    checkpoint=dict(type='CheckpointHook', interval=1),
+    checkpoint=dict(type='CheckpointHook', interval=10),
     sampler_seed=dict(type='DistSamplerSeedHook'),
     visualization=dict(type='PoseVisualizationHook', enable=False),
 )
@@ -37,9 +37,9 @@ load_from = None
 resume = False
 
 # file I/O backend
-file_client_args = dict(backend='disk')
+backend_args = dict(backend='local')
 
-# training/validatin/testing progress
+# training/validation/testing progress
 train_cfg = dict(by_epoch=True)
 val_cfg = dict()
 test_cfg = dict()

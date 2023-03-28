@@ -27,7 +27,8 @@ param_scheduler = [
 auto_scale_lr = dict(base_batch_size=512)
 
 # hooks
-default_hooks = dict(checkpoint=dict(save_best='PCK', rule='greater'))
+default_hooks = dict(
+    checkpoint=dict(save_best='PCK', rule='greater', interval=1))
 
 # codec settings
 codec = dict(
@@ -64,7 +65,7 @@ data_root = 'data/jhmdb/'
 
 # pipelines
 train_pipeline = [
-    dict(type='LoadImage', file_client_args={{_base_.file_client_args}}),
+    dict(type='LoadImage'),
     dict(type='GetBBoxCenterScale'),
     dict(type='RandomFlip', direction='horizontal'),
     dict(
@@ -77,7 +78,7 @@ train_pipeline = [
 ]
 
 val_pipeline = [
-    dict(type='LoadImage', file_client_args={{_base_.file_client_args}}),
+    dict(type='LoadImage'),
     dict(type='GetBBoxCenterScale'),
     dict(type='TopdownAffine', input_size=codec['input_size']),
     dict(type='PackPoseInputs')

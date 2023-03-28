@@ -5,14 +5,14 @@ import os.path as osp
 
 import mmcv
 import mmengine
+import mmengine.fileio as fileio
 import numpy as np
 from mmengine import Config, DictAction
-from mmengine.registry import build_from_cfg
+from mmengine.registry import build_from_cfg, init_default_scope
 from mmengine.structures import InstanceData
 
 from mmpose.registry import DATASETS, VISUALIZERS
 from mmpose.structures import PoseDataSample
-from mmpose.utils import register_all_modules
 
 
 def parse_args():
@@ -80,11 +80,10 @@ def main():
     cfg = Config.fromfile(args.config)
     if args.cfg_options is not None:
         cfg.merge_from_dict(args.cfg_options)
-    file_client_args = cfg.get('file_client_args', dict(backend='disk'))
-    file_client = mmengine.FileClient(**file_client_args)
+    backend_args = cfg.get('backend_args', dict(backend='local'))
 
     # register all modules in mmpose into the registries
-    register_all_modules()
+    init_default_scope(cfg.get('default_scope', 'mmpose'))
 
     if args.mode == 'original':
         cfg[f'{args.phase}_dataloader'].dataset.pipeline = []
@@ -122,7 +121,7 @@ def main():
                 continue
             else:
                 img_path = item['img_path']
-                img_bytes = file_client.get(img_path)
+                img_bytes = fileio.get(img_path, backend_args=backend_args)
                 img = mmcv.imfrombytes(img_bytes, channel_order='bgr')
 
                 # forge pseudo data_sample

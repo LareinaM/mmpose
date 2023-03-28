@@ -75,11 +75,13 @@ model = dict(
             type='Pretrained',
             checkpoint='open-mmlab://msra/hrnetv2_w18',
         )),
+    neck=dict(
+        type='FeatureMapProcessor',
+        concat=True,
+    ),
     head=dict(
         type='HeatmapHead',
-        in_channels=[18, 36, 72, 144],
-        input_index=(0, 1, 2, 3),
-        input_transform='resize_concat',
+        in_channels=270,
         out_channels=21,
         deconv_out_channels=None,
         conv_out_channels=(270, ),
@@ -99,7 +101,7 @@ data_root = 'data/rhd/'
 
 # pipelines
 train_pipeline = [
-    dict(type='LoadImage', file_client_args={{_base_.file_client_args}}),
+    dict(type='LoadImage'),
     dict(type='GetBBoxCenterScale'),
     dict(type='RandomFlip', direction='horizontal'),
     dict(
@@ -110,7 +112,7 @@ train_pipeline = [
     dict(type='PackPoseInputs')
 ]
 val_pipeline = [
-    dict(type='LoadImage', file_client_args={{_base_.file_client_args}}),
+    dict(type='LoadImage'),
     dict(type='GetBBoxCenterScale'),
     dict(type='TopdownAffine', input_size=codec['input_size']),
     dict(type='PackPoseInputs')

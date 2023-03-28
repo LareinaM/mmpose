@@ -10,9 +10,9 @@ optim_wrapper = dict(
         lr=5e-4,
         betas=(0.9, 0.999),
         weight_decay=0.01,
-        paramwise_cfg=dict(
-            custom_keys={'relative_position_bias_table': dict(
-                decay_mult=0.)})))
+    ),
+    paramwise_cfg=dict(
+        custom_keys={'relative_position_bias_table': dict(decay_mult=0.)}))
 
 # learning policy
 param_scheduler = [
@@ -114,7 +114,7 @@ data_root = 'data/coco/'
 
 # pipelines
 train_pipeline = [
-    dict(type='LoadImage', file_client_args={{_base_.file_client_args}}),
+    dict(type='LoadImage'),
     dict(type='GetBBoxCenterScale'),
     dict(type='RandomFlip', direction='horizontal'),
     dict(type='RandomHalfBody'),
@@ -125,7 +125,7 @@ train_pipeline = [
 ]
 
 val_pipeline = [
-    dict(type='LoadImage', file_client_args={{_base_.file_client_args}}),
+    dict(type='LoadImage'),
     dict(type='GetBBoxCenterScale'),
     dict(type='TopdownAffine', input_size=codec['input_size']),
     dict(type='PackPoseInputs')

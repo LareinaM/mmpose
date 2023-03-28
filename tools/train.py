@@ -6,8 +6,6 @@ import os.path as osp
 from mmengine.config import Config, DictAction
 from mmengine.runner import Runner
 
-from mmpose.utils import register_all_modules
-
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a pose model')
@@ -67,7 +65,10 @@ def parse_args():
         choices=['none', 'pytorch', 'slurm', 'mpi'],
         default='none',
         help='job launcher')
-    parser.add_argument('--local_rank', type=int, default=0)
+    # When using PyTorch version >= 2.0.0, the `torch.distributed.launch`
+    # will pass the `--local-rank` parameter to `tools/train.py` instead
+    # of `--local_rank`.
+    parser.add_argument('--local_rank', '--local-rank', type=int, default=0)
     args = parser.parse_args()
     if 'LOCAL_RANK' not in os.environ:
         os.environ['LOCAL_RANK'] = str(args.local_rank)
@@ -137,10 +138,6 @@ def merge_args(cfg, args):
 def main():
     args = parse_args()
 
-    # register all modules in mmpose into the registries
-    # do not init the default scope here because it will be init in the runner
-    register_all_modules(init_default_scope=False)
-
     # load config
     cfg = Config.fromfile(args.config)
 
@@ -148,7 +145,9 @@ def main():
     cfg = merge_args(cfg, args)
 
     # set preprocess configs to model
-    cfg.model.setdefault('data_preprocessor', cfg.get('preprocess_cfg', {}))
+    if 'preprocess_cfg' in cfg:
+        cfg.model.setdefault('data_preprocessor',
+                             cfg.get('preprocess_cfg', {}))
 
     # build the runner from config
     runner = Runner.from_cfg(cfg)

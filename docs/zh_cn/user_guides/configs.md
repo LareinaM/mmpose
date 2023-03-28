@@ -68,6 +68,10 @@ MMPose 预定义的 Registry 在 `$MMPOSE/mmpose/registry.py` 中，目前支持
 
 - `HOOKS`：钩子类
 
+```{note}
+需要注意的是，所有新增的模块都需要使用注册器（Registry）进行注册，并在对应目录的 `__init__.py` 中进行 `import`，以便能够使用配置文件构建其实例。
+```
+
 ## 配置系统
 
 具体而言，一个配置文件主要包含如下五个部分：
@@ -134,8 +138,6 @@ _base_ = ['../../../_base_/default_runtime.py'] # 以运行时的config文件位
 ```
 
 ```{note}
-**Tips**
-
 CheckpointHook:
 
 - save_best: `'coco/AP'` 用于 `CocoMetric`, `'PCK'` 用于 `PCKAccuracy`
@@ -163,7 +165,7 @@ CheckpointHook:
 下面是数据配置的样例说明：
 
 ```Python
-file_client_args = dict(backend='disk') # 数据加载后端设置，默认从本地硬盘加载
+backend_args = dict(backend='local') # 数据加载后端设置，默认从本地硬盘加载
 dataset_type = 'CocoDataset' # 数据集类名
 data_mode = 'topdown' # 算法结构类型，用于指定标注信息加载策略
 data_root = 'data/coco/' # 数据存放路径
@@ -171,7 +173,7 @@ data_root = 'data/coco/' # 数据存放路径
 codec = dict(
     type='MSRAHeatmap', input_size=(192, 256), heatmap_size=(48, 64), sigma=2)
 train_pipeline = [ # 训练时数据增强
-    dict(type='LoadImage', file_client_args=file_client_args, # 加载图片
+    dict(type='LoadImage', backend_args=backend_args, # 加载图片
     dict(type='GetBBoxCenterScale'), # 根据bbox获取center和scale
     dict(type='RandomBBoxTransform'), # 生成随机位移、缩放、旋转变换矩阵
     dict(type='RandomFlip', direction='horizontal'), # 生成随机翻转变换矩阵
@@ -184,7 +186,7 @@ train_pipeline = [ # 训练时数据增强
     dict(type='PackPoseInputs') # 对target进行打包用于训练
 ]
 test_pipeline = [ # 测试时数据增强
-    dict(type='LoadImage', file_client_args=file_client_args), # 加载图片
+    dict(type='LoadImage', backend_args=backend_args), # 加载图片
     dict(type='GetBBoxCenterScale'), # 根据bbox获取center和scale
     dict(type='TopdownAffine', input_size=codec['input_size']), # 根据变换矩阵更新目标数据
     dict(type='PackPoseInputs') # 对target进行打包用于训练
@@ -223,9 +225,11 @@ test_dataloader = val_dataloader # 默认情况下不区分验证集和测试集
 ```
 
 ```{note}
-**Tips**
 
-设置随机种子： `randomness=dict(seed=0)`
+常用功能可以参考以下教程:
+- [恢复训练](../common_usages/resume_training.md)
+- [自动混合精度训练](../common_usages/amp_training.md)
+- [设置随机种子](../common_usages/set_random_seed.md)
 
 ```
 

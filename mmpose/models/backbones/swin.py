@@ -1,5 +1,4 @@
 # Copyright (c) OpenMMLab. All rights reserved.
-from collections import OrderedDict
 from copy import deepcopy
 
 import torch
@@ -14,11 +13,11 @@ from mmengine.runner import load_state_dict
 from mmengine.utils import to_2tuple
 
 from mmpose.registry import MODELS
-from ...utils import get_root_logger
+from mmpose.utils import get_root_logger
+from ..utils.transformer import PatchEmbed, PatchMerging
 from .base_backbone import BaseBackbone
 from .utils import get_state_dict
 from .utils.ckpt_convert import swin_converter
-from .utils.transformer import PatchEmbed, PatchMerging
 
 
 class WindowMSA(BaseModule):
@@ -668,13 +667,11 @@ class SwinTransformer(BaseBackbone):
                 and self.init_cfg['type'] == 'Pretrained'):
             # Suppress zero_init_residual if use pretrained model.
             logger = get_root_logger()
-            _state_dict = get_state_dict(
+            state_dict = get_state_dict(
                 self.init_cfg['checkpoint'], map_location='cpu')
             if self.convert_weights:
-                # supported loading weight from original repo,
-                _state_dict = swin_converter(_state_dict)
-
-            state_dict = OrderedDict()
+                # supported loading weight from original repo
+                state_dict = swin_converter(state_dict)
 
             # strip prefix of state_dict
             if list(state_dict.keys())[0].startswith('module.'):

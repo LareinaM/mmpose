@@ -14,22 +14,20 @@ from mmpose.apis import init_model as init_pose_estimator
 from mmpose.evaluation.functional import nms
 from mmpose.registry import VISUALIZERS
 from mmpose.structures import merge_data_samples, split_instances
-from mmpose.utils import register_all_modules as register_mmpose_modules
+from mmpose.utils import adapt_mmdet_pipeline
 
 try:
     from mmdet.apis import inference_detector, init_detector
-    from mmdet.utils import register_all_modules as register_mmdet_modules
     has_mmdet = True
 except (ImportError, ModuleNotFoundError):
     has_mmdet = False
 
 
-def infer_and_visualize_image(args, img_path, detector, pose_estimator,
-                              visualizer, show_interval):
-    """Predict the keypoints of one image, and visualize the results."""
+def process_one_image(args, img_path, detector, pose_estimator, visualizer,
+                      show_interval):
+    """Visualize predicted keypoints (and heatmaps) of one image."""
 
     # predict bbox
-    register_mmdet_modules()
     det_result = inference_detector(detector, img_path)
     pred_instance = det_result.pred_instances.cpu().numpy()
     bboxes = np.concatenate(
@@ -37,14 +35,13 @@ def infer_and_visualize_image(args, img_path, detector, pose_estimator,
     bboxes = bboxes[np.logical_and(pred_instance.labels == args.det_cat_id,
                                    pred_instance.scores > args.bbox_thr)]
     bboxes = bboxes[nms(bboxes, args.nms_thr), :4]
+
     # predict keypoints
-    register_mmpose_modules()
     pose_results = inference_topdown(pose_estimator, img_path, bboxes)
     data_samples = merge_data_samples(pose_results)
 
     # show the results
-    img = mmcv.imread(img_path)
-    img = mmcv.imconvert(img, 'bgr', 'rgb')
+    img = mmcv.imread(img_path, channel_order='rgb')
 
     out_file = None
     if args.output_root:
@@ -57,12 +54,15 @@ def infer_and_visualize_image(args, img_path, detector, pose_estimator,
         draw_gt=False,
         draw_heatmap=args.draw_heatmap,
         draw_bbox=args.draw_bbox,
+        show_kpt_idx=args.show_kpt_idx,
+        skeleton_style=args.skeleton_style,
         show=args.show,
         wait_time=show_interval,
         out_file=out_file,
-        kpt_score_thr=args.kpt_thr)
+        kpt_thr=args.kpt_thr)
 
-    return data_samples.pred_instances
+    # if there is no instance detected, return None
+    return data_samples.get('pred_instances', None)
 
 
 def main():
@@ -111,12 +111,26 @@ def main():
         default=0.3,
         help='IoU threshold for bounding box NMS')
     parser.add_argument(
-        '--kpt-thr', type=float, default=0.3, help='Keypoint score threshold')
+        '--kpt-thr',
+        type=float,
+        default=0.3,
+        help='Visualizing keypoint thresholds')
     parser.add_argument(
         '--draw-heatmap',
         action='store_true',
         default=False,
         help='Draw heatmap predicted by the model')
+    parser.add_argument(
+        '--show-kpt-idx',
+        action='store_true',
+        default=False,
+        help='Whether to show the index of keypoints')
+    parser.add_argument(
+        '--skeleton-style',
+        default='mmpose',
+        type=str,
+        choices=['mmpose', 'openpose'],
+        help='Skeleton style selection')
     parser.add_argument(
         '--radius',
         type=int,
@@ -127,6 +141,8 @@ def main():
         type=int,
         default=1,
         help='Link thickness for visualization')
+    parser.add_argument(
+        '--alpha', type=float, default=0.8, help='The transparency of bboxes')
     parser.add_argument(
         '--draw-bbox', action='store_true', help='Draw bboxes of instances')
 
@@ -146,12 +162,11 @@ def main():
             f'{os.path.splitext(os.path.basename(args.input))[0]}.json'
 
     # build detector
-    register_mmdet_modules()
     detector = init_detector(
         args.det_config, args.det_checkpoint, device=args.device)
+    detector.cfg = adapt_mmdet_pipeline(detector.cfg)
 
     # build pose estimator
-    register_mmpose_modules()
     pose_estimator = init_pose_estimator(
         args.pose_config,
         args.pose_checkpoint,
@@ -161,25 +176,25 @@ def main():
 
     # init visualizer
     pose_estimator.cfg.visualizer.radius = args.radius
+    pose_estimator.cfg.visualizer.alpha = args.alpha
     pose_estimator.cfg.visualizer.line_width = args.thickness
+
     visualizer = VISUALIZERS.build(pose_estimator.cfg.visualizer)
     # the dataset_meta is loaded from the checkpoint and
     # then pass to the model in init_pose_estimator
-    visualizer.set_dataset_meta(pose_estimator.dataset_meta)
+    visualizer.set_dataset_meta(
+        pose_estimator.dataset_meta, skeleton_style=args.skeleton_style)
 
     input_type = mimetypes.guess_type(args.input)[0].split('/')[0]
     if input_type == 'image':
-        pred_instances = infer_and_visualize_image(
+        pred_instances = process_one_image(
             args,
             args.input,
             detector,
             pose_estimator,
             visualizer,
             show_interval=0)
-        if args.save_predictions:
-            with open(args.pred_save_path, 'w') as f:
-                json.dump(split_instances(pred_instances), f, indent='\t')
-            print(f'predictions have been saved at {args.pred_save_path}')
+        pred_instances_list = split_instances(pred_instances)
 
     elif input_type == 'video':
         tmp_folder = tempfile.TemporaryDirectory()
@@ -191,13 +206,14 @@ def main():
         pred_instances_list = []
 
         for frame_id, img_fname in enumerate(os.listdir(tmp_folder.name)):
-            pred_instances = infer_and_visualize_image(
+            pred_instances = process_one_image(
                 args,
                 f'{tmp_folder.name}/{img_fname}',
                 detector,
                 pose_estimator,
                 visualizer,
                 show_interval=1)
+
             progressbar.update()
             pred_instances_list.append(
                 dict(
@@ -213,14 +229,20 @@ def main():
                 show_progress=False)
         tmp_folder.cleanup()
 
-        if args.save_predictions:
-            with open(args.pred_save_path, 'w') as f:
-                json.dump(pred_instances_list, f, indent='\t')
-            print(f'predictions have been saved at {args.pred_save_path}')
-
     else:
+        args.save_predictions = False
         raise ValueError(
             f'file {os.path.basename(args.input)} has invalid format.')
+
+    if args.save_predictions:
+        with open(args.pred_save_path, 'w') as f:
+            json.dump(
+                dict(
+                    meta_info=pose_estimator.dataset_meta,
+                    instance_info=pred_instances_list),
+                f,
+                indent='\t')
+        print(f'predictions have been saved at {args.pred_save_path}')
 
 
 if __name__ == '__main__':

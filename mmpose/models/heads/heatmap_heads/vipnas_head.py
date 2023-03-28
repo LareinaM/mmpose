@@ -41,22 +41,6 @@ class ViPNASHead(HeatmapHead):
             of each intermediate conv layer. Defaults to ``None``
         has_final_layer (bool): Whether have the final 1x1 Conv2d layer.
             Defaults to ``True``
-        input_transform (str): Transformation of input features which should
-            be one of the following options:
-
-                - ``'resize_concat'``: Resize multiple feature maps specified
-                    by ``input_index`` to the same size as the first one and
-                    concat these feature maps
-                - ``'select'``: Select feature map(s) specified by
-                    ``input_index``. Multiple selected features will be
-                    bundled into a tuple
-
-            Defaults to ``'select'``
-        input_index (int | Sequence[int]): The feature map index used in the
-            input transformation. See also ``input_transform``. Defaults to -1
-        align_corners (bool): `align_corners` argument of
-            :func:`torch.nn.functional.interpolate` used in the input
-            transformation. Defaults to ``False``
         loss (Config): Config of the keypoint loss. Defaults to use
             :class:`KeypointMSELoss`
         decoder (Config, optional): The decoder config that controls decoding
@@ -79,9 +63,6 @@ class ViPNASHead(HeatmapHead):
                  conv_out_channels: OptIntSeq = None,
                  conv_kernel_sizes: OptIntSeq = None,
                  has_final_layer: bool = True,
-                 input_transform: str = 'select',
-                 input_index: Union[int, Sequence[int]] = -1,
-                 align_corners: bool = False,
                  loss: ConfigType = dict(
                      type='KeypointMSELoss', use_target_weight=True),
                  decoder: OptConfigType = None,
@@ -94,21 +75,11 @@ class ViPNASHead(HeatmapHead):
 
         self.in_channels = in_channels
         self.out_channels = out_channels
-        self.align_corners = align_corners
-        self.input_transform = input_transform
-        self.input_index = input_index
         self.loss_module = MODELS.build(loss)
         if decoder is not None:
             self.decoder = KEYPOINT_CODECS.build(decoder)
         else:
             self.decoder = None
-
-        # Get model input channels according to feature
-        in_channels = self._get_in_channels()
-        if isinstance(in_channels, list):
-            raise ValueError(
-                f'{self.__class__.__name__} does not support selecting '
-                'multiple input features.')
 
         if deconv_out_channels:
             if deconv_kernel_sizes is None or len(deconv_out_channels) != len(
@@ -116,14 +87,14 @@ class ViPNASHead(HeatmapHead):
                 raise ValueError(
                     '"deconv_out_channels" and "deconv_kernel_sizes" should '
                     'be integer sequences with the same length. Got '
-                    f'unmatched values {deconv_out_channels} and '
+                    f'mismatched lengths {deconv_out_channels} and '
                     f'{deconv_kernel_sizes}')
             if deconv_num_groups is None or len(deconv_out_channels) != len(
                     deconv_num_groups):
                 raise ValueError(
                     '"deconv_out_channels" and "deconv_num_groups" should '
                     'be integer sequences with the same length. Got '
-                    f'unmatched values {deconv_out_channels} and '
+                    f'mismatched lengths {deconv_out_channels} and '
                     f'{deconv_num_groups}')
 
             self.deconv_layers = self._make_deconv_layers(
@@ -141,8 +112,9 @@ class ViPNASHead(HeatmapHead):
                     conv_kernel_sizes):
                 raise ValueError(
                     '"conv_out_channels" and "conv_kernel_sizes" should '
-                    'be integer sequences with the same length. Got unmatched'
-                    f' values {conv_out_channels} and {conv_kernel_sizes}')
+                    'be integer sequences with the same length. Got '
+                    f'mismatched lengths {conv_out_channels} and '
+                    f'{conv_kernel_sizes}')
 
             self.conv_layers = self._make_conv_layers(
                 in_channels=in_channels,

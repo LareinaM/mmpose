@@ -27,7 +27,7 @@ param_scheduler = [
 auto_scale_lr = dict(base_batch_size=256)
 
 # hooks
-default_hooks = dict(checkpoint=dict(save_best='NME', rule='less'))
+default_hooks = dict(checkpoint=dict(save_best='NME', rule='less', interval=1))
 
 # codec settings
 codec = dict(
@@ -73,11 +73,13 @@ model = dict(
             upsample=dict(mode='bilinear', align_corners=False)),
         init_cfg=dict(
             type='Pretrained', checkpoint='open-mmlab://msra/hrnetv2_w18')),
+    neck=dict(
+        type='FeatureMapProcessor',
+        concat=True,
+    ),
     head=dict(
         type='HeatmapHead',
-        in_channels=[18, 36, 72, 144],
-        input_index=(0, 1, 2, 3),
-        input_transform='resize_concat',
+        in_channels=270,
         out_channels=68,
         deconv_out_channels=None,
         loss=dict(type='KeypointMSELoss', use_target_weight=True),
@@ -97,7 +99,7 @@ data_root = 'data/coco/'
 
 # pipelines
 train_pipeline = [
-    dict(type='LoadImage', file_client_args={{_base_.file_client_args}}),
+    dict(type='LoadImage'),
     dict(type='GetBBoxCenterScale'),
     dict(type='RandomFlip', direction='horizontal'),
     dict(
@@ -109,7 +111,7 @@ train_pipeline = [
     dict(type='PackPoseInputs')
 ]
 val_pipeline = [
-    dict(type='LoadImage', file_client_args={{_base_.file_client_args}}),
+    dict(type='LoadImage'),
     dict(type='GetBBoxCenterScale'),
     dict(type='TopdownAffine', input_size=codec['input_size']),
     dict(type='PackPoseInputs')

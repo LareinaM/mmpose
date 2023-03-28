@@ -72,6 +72,7 @@ model = dict(
             type='Pretrained',
             checkpoint='pretrained/mae_pretrain_vit_large.pth'),
     ),
+    neck=dict(type='FeatureMapProcessor', scale_factor=4.0, apply_relu=True),
     head=dict(
         type='HeatmapHead',
         in_channels=1024,
@@ -80,7 +81,7 @@ model = dict(
         deconv_kernel_sizes=[],
         loss=dict(type='KeypointMSELoss', use_target_weight=True),
         decoder=codec,
-        extra=dict(upsample=4, final_conv_kernel=3),
+        extra=dict(final_conv_kernel=3),
     ),
     test_cfg=dict(
         flip_test=True,
@@ -95,7 +96,7 @@ data_mode = 'topdown'
 
 # pipelines
 train_pipeline = [
-    dict(type='LoadImage', file_client_args={{_base_.file_client_args}}),
+    dict(type='LoadImage'),
     dict(type='GetBBoxCenterScale'),
     dict(type='RandomFlip', direction='horizontal'),
     dict(type='RandomHalfBody'),
@@ -105,7 +106,7 @@ train_pipeline = [
     dict(type='PackPoseInputs')
 ]
 val_pipeline = [
-    dict(type='LoadImage', file_client_args={{_base_.file_client_args}}),
+    dict(type='LoadImage'),
     dict(type='GetBBoxCenterScale'),
     dict(type='TopdownAffine', input_size=codec['input_size'], use_udp=True),
     dict(type='PackPoseInputs')

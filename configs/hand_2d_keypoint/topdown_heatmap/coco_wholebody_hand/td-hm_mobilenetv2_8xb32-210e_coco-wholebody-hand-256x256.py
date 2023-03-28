@@ -47,7 +47,7 @@ model = dict(
         init_cfg=dict(type='Pretrained', checkpoint='mmcls://mobilenet_v2')),
     head=dict(
         type='HeatmapHead',
-        in_channels=2048,
+        in_channels=1280,
         out_channels=21,
         loss=dict(type='KeypointMSELoss', use_target_weight=True),
         decoder=codec),
@@ -64,7 +64,7 @@ data_root = 'data/coco/'
 
 # pipelines
 train_pipeline = [
-    dict(type='LoadImage', file_client_args={{_base_.file_client_args}}),
+    dict(type='LoadImage'),
     dict(type='GetBBoxCenterScale'),
     dict(
         type='RandomBBoxTransform', rotate_factor=180,
@@ -75,7 +75,7 @@ train_pipeline = [
     dict(type='PackPoseInputs')
 ]
 val_pipeline = [
-    dict(type='LoadImage', file_client_args={{_base_.file_client_args}}),
+    dict(type='LoadImage'),
     dict(type='GetBBoxCenterScale'),
     dict(type='TopdownAffine', input_size=codec['input_size']),
     dict(type='PackPoseInputs')
