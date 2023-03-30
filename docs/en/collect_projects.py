@@ -34,7 +34,7 @@ def _parse_project_doc_path(fn):
     with open(fn, 'r', encoding='utf-8') as f:
         for line in f.readlines():
             if re.match('^( )*<img', line) and not project_banner:
-                project_banner = line
+                project_banner = line.replace('100%', '80%')
             if line.startswith('# ') and not project_name:
                 project_name = line
             if project_name and project_banner:
@@ -73,7 +73,7 @@ def _get_faq_doc():
             encoding='utf-8') as f:
         for line in f.readlines():
             if '#' in line:
-                line = re.sub(r'^\#', r'\#\#', line)
+                line = re.sub(r'^\#', '##', line)
             faq_doc.append(line)
     return faq_doc
 
