@@ -81,6 +81,21 @@ class HeatmapHead(BaseHead):
             self.decoder = KEYPOINT_CODECS.build(decoder)
         else:
             self.decoder = None
+        self.upsample = 0
+
+        if extra is not None and not isinstance(extra, dict):
+            raise TypeError('extra should be dict or None.')
+
+        kernel_size = 1
+        padding = 0
+        if extra is not None:
+            if 'upsample' in extra:
+                self.upsample = extra['upsample']
+            if 'final_conv_kernel' in extra:
+                assert extra['final_conv_kernel'] in [1, 3]
+                if extra['final_conv_kernel'] == 3:
+                    padding = 1
+                kernel_size = extra['final_conv_kernel']
 
         if deconv_out_channels:
             if deconv_kernel_sizes is None or len(deconv_out_channels) != len(
