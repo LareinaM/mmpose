@@ -73,7 +73,7 @@ def _get_faq_doc():
             encoding='utf-8') as f:
         for line in f.readlines():
             if '#' in line:
-                line = re.sub(r'^(\#+)', r'\g<1>#', line)
+                line = re.sub(r'^\#', r'\#\#', line)
             faq_doc.append(line)
     return faq_doc
 
@@ -107,7 +107,7 @@ def main():
     with open(
             osp.join('projects', 'community_projects.md'), 'w',
             encoding='utf-8') as f:
-        f.write('# Projects of MMPose from Community Contributors\n')
+        f.write('# Projects from Community Contributors\n')
         f.write(''.join(project_intro_doc))
         f.write('\n'.join(project_lines))
         f.write(''.join(faq_doc))
