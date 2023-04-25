@@ -289,36 +289,21 @@ class BaseMocapDataset(BaseDataset):
             target_idx = -1 if self.causal else int(self.seq_len) // 2
 
             instance_info = {
-                'num_keypoints':
-                num_keypoints,
-                'keypoints':
-                keypoints,
-                'keypoints_visible':
-                keypoints_visible,
-                'keypoints_3d':
-                keypoints_3d,
-                'keypoints_3d_visible':
-                keypoints_3d_visible,
-                'scale':
-                scales[idx],
-                'center':
-                centers[idx].astype(np.float32).reshape(1, -1),
-                'id':
-                idx,
-                'category_id':
-                1,
-                'iscrowd':
-                0,
-                'img_paths':
-                list(_img_names),
-                'img_ids':
-                frame_ids,
-                'target':
-                keypoints_3d[target_idx],
-                'target_visible':
-                keypoints_3d_visible[target_idx],
-                'target_img_path':
-                osp.join(self.data_prefix['img'], _img_names[target_idx])
+                'num_keypoints': num_keypoints,
+                'keypoints': keypoints,
+                'keypoints_visible': keypoints_visible,
+                'keypoints_3d': keypoints_3d,
+                'keypoints_3d_visible': keypoints_3d_visible,
+                'scale': scales[idx],
+                'center': centers[idx].astype(np.float32).reshape(1, -1),
+                'id': idx,
+                'category_id': 1,
+                'iscrowd': 0,
+                'img_paths': list(_img_names),
+                'img_ids': frame_ids,
+                'target': keypoints_3d[target_idx],
+                'target_visible': keypoints_3d_visible[target_idx],
+                'target_img_id': frame_ids[target_idx],
             }
 
             if self.camera_param_file:
